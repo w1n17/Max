@@ -72,6 +72,7 @@ export default function Header() {
     setIsLoading(true);
     try {
       const { email, phone, password } = registerData;
+      const formattedPhone = formatPhoneNumber(phone);
 
       // Сначала регистрируем пользователя
       const { data, error: signUpError } = await supabase.auth.signUp({
@@ -79,7 +80,7 @@ export default function Header() {
         password,
         options: {
           data: {
-            phone: formatPhoneNumber(phone),
+            phone: formattedPhone,
           },
         },
       });
@@ -88,6 +89,22 @@ export default function Header() {
 
       if (!data?.user?.id) {
         throw new Error("Не удалось создать пользователя");
+      }
+
+      // Создаем запись в profiles вручную
+      const { error: profileError } = await supabase.from("profiles").insert([
+        {
+          id: data.user.id,
+          email: email,
+          phone: formattedPhone,
+          role: "user",
+          created_at: new Date().toISOString(),
+        },
+      ]);
+
+      if (profileError) {
+        console.error("Ошибка создания профиля:", profileError);
+        // Продолжаем выполнение, так как профиль может быть создан через триггер
       }
 
       setStatusMessage(
